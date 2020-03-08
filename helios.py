@@ -10,9 +10,21 @@ class HeliosModBus:
 
     def __init__(self, host='127.0.0.1', port='502'):
         self.client = ModbusTcpClient(host=host, port=port)
-        self.client.connect()
+        self.connect()
 
         self.reg_id = None
+
+    def connect(self):
+        """
+        Connect to Modbus device
+        """
+        self.client.connect()
+
+    def close(self):
+        """
+        Close connection to Modbus device
+        """
+        self.client.close()
 
     def set_reg_id(self, reg_id):
         self.reg_id = "v{:05d}".format(reg_id)
@@ -95,6 +107,7 @@ def main():
     fan_setting = result[1]
     print(f"fan percent: {fan_setting}")
 
+    client.close()
 
 if __name__ == "__main__":
     main()
