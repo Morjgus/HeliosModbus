@@ -1,10 +1,13 @@
+from pymodbus.constants import Endian
+from pymodbus.payload import BinaryPayloadDecoder
+from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.client.sync import ModbusTcpClient
 from time import sleep
 
 
 class HeliosModBus:
-    _unit = 180
-    _address = 1
+    UNIT = 180
+    ADDRESS = 1
 
     def __init__(self, host='127.0.0.1', port='502'):
         self.client = ModbusTcpClient(host=host, port=port)
@@ -19,15 +22,18 @@ class HeliosModBus:
         if self.reg_id is None:
             raise ValueError
 
-        tx_str = self.reg_id
+        builder = BinaryPayloadBuilder(byteorder=Endian.Big,
+                                       wordorder=Endian.Little)
+        builder.add_string(self.reg_id)
 
         if value is not None:
-            tx_str += "=" + str(value)
+            builder.add_string("=" + str(value))
         # terminate string with NUL byte
-        tx_str += '\0'
+        builder.add_string('\0')
 
-        tx_value = self.str_to_list(tx_str)
-        self.client.write_registers(address=self._address, values=tx_value, unit=self._unit)
+        payload = builder.to_registers()
+
+        self.client.write_registers(address=self.ADDRESS, values=payload, unit=self.UNIT)
 
     def read_registers(self, length) -> [int, str]:
         """
@@ -67,6 +73,7 @@ class HeliosModBus:
             ret_val += chr((v >> 8) & 0xFF)
             ret_val += chr(v & 0xFF)
         return ret_val
+
 
 def main():
     client = HeliosModBus(host='helios.fritz.box')
