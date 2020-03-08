@@ -1,8 +1,7 @@
-from pymodbus.constants import Endian
-from pymodbus.payload import BinaryPayloadDecoder
-from pymodbus.payload import BinaryPayloadBuilder
 from pymodbus.client.sync import ModbusTcpClient
-from time import sleep
+from pymodbus.constants import Endian
+from pymodbus.payload import BinaryPayloadBuilder
+from pymodbus.payload import BinaryPayloadDecoder
 
 
 class HeliosModBus:
@@ -48,31 +47,13 @@ class HeliosModBus:
 
         self.write_registers()
         registers_list = self.client.read_holding_registers(address=1, count=length, unit=180)
-        values = self.list_to_str(registers_list.registers).rstrip('\0').split('=')
+        decoder = BinaryPayloadDecoder.fromRegisters(registers_list.registers,
+                                                     byteorder=Endian.Big,
+                                                     wordorder=Endian.Little)
+        decoded = decoder.decode_string(length).decode()
+        values = decoded.rstrip('\x00').split('=')
         values[0] = int(values[0][1:])
         return values
-
-    @staticmethod
-    def str_to_list(string: str):
-        chars = [ord(c) for c in list(string)]
-        u16_list = []
-        for num, c in enumerate(chars):
-            if not num % 2:
-                val = (c & 0xFF) << 8
-            else:
-                val |= c & 0xFF
-                u16_list.append(val)
-        if not num % 2:
-            u16_list.append(val)
-        return u16_list
-
-    @staticmethod
-    def list_to_str(lst) -> str:
-        ret_val = ''
-        for v in lst:
-            ret_val += chr((v >> 8) & 0xFF)
-            ret_val += chr(v & 0xFF)
-        return ret_val
 
 
 def main():
@@ -80,7 +61,6 @@ def main():
     reg_id = 0
     client.set_reg_id(reg_id)
     print("Sending command: v{:05d}".format(reg_id))
-    #client.write_registers()
     result = client.read_registers(length=32)
     print(f"Received command {result[0]}")
     device_name = result[1]
@@ -88,7 +68,6 @@ def main():
 
     tx_cmd = 4
     print("Sending command: v{:05d}".format(tx_cmd))
-    #client.write_registers()
     client.set_reg_id(tx_cmd)
     result = client.read_registers(length=32)
     rx_cmd = result[0]
@@ -99,7 +78,6 @@ def main():
     tx_cmd = 5
     print("Sending command: v{:05d}".format(tx_cmd))
     client.set_reg_id(tx_cmd)
-    #client.write_registers()
     result = client.read_registers(length=32)
     rx_cmd = result[0]
     print(f"Received command v{rx_cmd:05d}")
@@ -116,8 +94,6 @@ def main():
     print(f"Received command v{rx_cmd:05d}")
     fan_setting = result[1]
     print(f"fan percent: {fan_setting}")
-
-    #client.close()
 
 
 if __name__ == "__main__":
