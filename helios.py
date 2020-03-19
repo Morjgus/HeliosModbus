@@ -26,16 +26,15 @@ class HeliosModBus:
         """
         self.client.close()
 
-    def set_reg_id(self, reg_id):
-        self.reg_id = "v{:05d}".format(reg_id)
-
-    def write_registers(self, value=None):
-        if self.reg_id is None:
+    def write_registers(self, reg_id: int, value=None):
+        if reg_id is None:
             raise ValueError
+
+        reg_str = "v{:05d}".format(reg_id)
 
         builder = BinaryPayloadBuilder(byteorder=Endian.Big,
                                        wordorder=Endian.Little)
-        builder.add_string(self.reg_id)
+        builder.add_string(reg_str)
 
         if value is not None:
             builder.add_string("=" + str(value))
@@ -46,18 +45,19 @@ class HeliosModBus:
 
         self.client.write_registers(address=self.ADDRESS, values=payload, unit=self.UNIT)
 
-    def read_registers(self, length) -> [int, str]:
+    def read_registers(self, reg_id: int, length: int) -> [int, str]:
         """
         Read registers from modbus
 
-        First write requested register id, then read answer
+        First write requested register id, then read answer.
+        :param reg_id: id of the register to read from
         :param length: length of requested data
         :return: List containing register id as int and value as string
         """
-        if self.reg_id is None:
+        if reg_id is None:
             raise ValueError
 
-        self.write_registers()
+        self.write_registers(reg_id=reg_id)
         registers_list = self.client.read_holding_registers(address=1, count=length, unit=180)
         decoder = BinaryPayloadDecoder.fromRegisters(registers_list.registers,
                                                      byteorder=Endian.Big,
@@ -71,43 +71,40 @@ class HeliosModBus:
 def main():
     client = HeliosModBus(host='helios.fritz.box')
     reg_id = 0
-    client.set_reg_id(reg_id)
     print("Sending command: v{:05d}".format(reg_id))
-    result = client.read_registers(length=32)
+    result = client.read_registers(reg_id=reg_id, length=32)
     print(f"Received command {result[0]}")
     device_name = result[1]
     print(f"Device type: {device_name}")
 
-    tx_cmd = 4
-    print("Sending command: v{:05d}".format(tx_cmd))
-    client.set_reg_id(tx_cmd)
-    result = client.read_registers(length=32)
+    reg_id = 4
+    print("Sending command: v{:05d}".format(reg_id))
+    result = client.read_registers(reg_id=reg_id, length=32)
     rx_cmd = result[0]
     print(f"Received command v{rx_cmd:05d}")
     system_date = result[1]
     print(f"System date: {system_date}")
 
-    tx_cmd = 5
-    print("Sending command: v{:05d}".format(tx_cmd))
-    client.set_reg_id(tx_cmd)
-    result = client.read_registers(length=32)
+    reg_id = 5
+    print("Sending command: v{:05d}".format(reg_id))
+    result = client.read_registers(reg_id=reg_id, length=32)
     rx_cmd = result[0]
     print(f"Received command v{rx_cmd:05d}")
     system_time = result[1]
     print(f"System time: {system_time}")
 
-    tx_cmd = 102
+    reg_id = 102
     tx_value = 1
-    print("Sending command: v{:05d} with value {}".format(tx_cmd, tx_value))
-    client.set_reg_id(tx_cmd)
-    client.write_registers(value=tx_value)
-    result = client.read_registers(length=10)
+    print("Sending command: v{:05d} with value {}".format(reg_id, tx_value))
+    client.write_registers(reg_id=reg_id, value=tx_value)
+    result = client.read_registers(reg_id=reg_id, length=10)
     rx_cmd = result[0]
     print(f"Received command v{rx_cmd:05d}")
     fan_setting = result[1]
-    print(f"fan percent: {fan_setting}")
+    print(f"fan level: {fan_setting}")
 
     client.close()
+
 
 if __name__ == "__main__":
     main()
